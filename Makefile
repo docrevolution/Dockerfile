@@ -1,68 +1,47 @@
-ARGS = $(filter-out $@,$(MAKECMDGOALS))
 MAKEFLAGS += --silent
-.PHONY: test documentation provision
+.PHONY: generate check test test-image test-image-runner test-image-run structure-test
 
-DOCKER_REPOSITORY=`cat DOCKER_REPOSITORY`
-DOCKER_TAG_LATEST=`cat DOCKER_TAG_LATEST`
+# The containers run as the user who calls make, so that the files they write belong to them. In rootless Docker,
+# root in the container already is that user. sh replaces the entrypoint of webdevops/php, which would switch to root.
+ROOTLESS = $(findstring rootless,$(shell docker info --format '{{.SecurityOptions}}' 2>/dev/null))
+USER_ID = $(shell id -u):$(shell id -g)
+DOCKER_USER = $(if $(ROOTLESS),,--user $(USER_ID))
+GOSU = $(if $(ROOTLESS),,gosu $(USER_ID))
+# git trusts the checkout without a write to a .gitconfig
+GIT_TRUST = -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/app
 
-list:
-	sh -c "echo; $(MAKE) -p no_targets__ |\
-		awk -F':' '/^[a-zA-Z0-9][^\$$#\\t=]*:([^=]|$$)/ {split(\$$1,A,/ /);\
-		for(i in A)print A[i]}' | \
-	  	grep -v '__\$$\|Makefile\|%' | \
-		sort"
+# Installs the PHP tools of ci/ and writes every generated file, in webdevops/php:8.4-alpine
+generate:
+	docker run --rm $(DOCKER_USER) -e COMPOSER_HOME=/tmp/composer -v "$(CURDIR)":/app -w /app --entrypoint sh webdevops/php:8.4-alpine -c 'composer install --working-dir=ci && ci/console generate'
 
-full:      provision build
+# Installs the PHP tools of ci/ and checks the PHP code in ci/ with GrumPHP. Only apk runs as root, for the "file"
+# command of GrumPHP's BOM check.
+check:
+	docker run --rm $(GIT_TRUST) -e COMPOSER_HOME=/tmp/composer -v "$(CURDIR)":/app -w /app/ci --entrypoint sh webdevops/php:8.4-alpine -c 'apk add --no-cache file >/dev/null && exec $(GOSU) sh -c "composer install && vendor/bin/grumphp run --no-interaction"'
 
-all:       build
-
-build:
-	python2 ./bin/console docker:build --threads=auto
-
-bootstrap: webdevops/bootstrap webdevops/ansible
-base:      webdevops/base webdevops/base-app webdevops/storage
-service:   webdevops/ssh webdevops/vsftp webdevops/postfix
-
-php:       webdevops/php webdevops/php-apache webdevops/php-nginx
-php-dev:   webdevops/php-dev webdevops/php-apache-dev webdevops/php-nginx-dev
-hhvm:      webdevops/hhvm webdevops/hhvm-apache webdevops/hhvm-nginx
-
-web:       webdevops/apache webdevops/apache-dev webdevops/nginx webdevops/nginx-dev webdevops/varnish webdevops/certbot
-
-applications: webdevops/typo3 webdevops/piwik
-
-misc:      webdevops/mail-sandbox webdevops/sphinx webdevops/liquibase
-
-setup:     requirements
-
-requirements:
-	pip install --upgrade -I -r ./bin/requirements.txt
-	cd tests/serverspec && bundle install --path=vendor
-
+# Runs only the PHPUnit tests of ci/
 test:
-	python2 bin/console test:serverspec --threads=auto -v
+	docker run --rm $(DOCKER_USER) -e COMPOSER_HOME=/tmp/composer -v "$(CURDIR)":/app -w /app/ci --entrypoint sh webdevops/php:8.4-alpine -c 'composer install && vendor/bin/phpunit'
+
+# Runs the image tests of IMAGE (webdevops/<image>:<tag>) against a container of REFERENCE, by default IMAGE itself,
+# e.g. make test-image IMAGE=webdevops/php-nginx:8.5 REFERENCE=my-build. The tests run in a container of
+# ci/image-tests/Dockerfile, which starts the container of the image through the Docker socket. test-image builds that
+# runner first; test-image-run uses the runner that is already built, as the CI does after building it with its cache.
+DOCKER_SOCKET ?= $(if $(ROOTLESS),$(patsubst unix://%,%,$(shell docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null)),/var/run/docker.sock)
+ifneq ($(filter test-image test-image-run,$(MAKECMDGOALS)),)
+ifeq ($(IMAGE),)
+$(error Name the image to test, e.g. make test-image IMAGE=webdevops/php-nginx:8.5)
+endif
+endif
+
+test-image: test-image-runner
+	@$(MAKE) --no-print-directory test-image-run
+
+test-image-runner:
+	docker build --quiet --tag webdevops-image-tests --file ci/image-tests/Dockerfile . >/dev/null
+
+test-image-run:
+	docker run --rm --volume "$(DOCKER_SOCKET)":/var/run/docker.sock webdevops-image-tests $(IMAGE) $(if $(REFERENCE),--reference $(REFERENCE))
 
 structure-test:
 	cd tests/structure-test && ./run.sh
-
-provision:
-	python2 bin/console generate:dockerfile
-	python2 bin/console generate:provision
-
-push:
-	python2 ./bin/console docker:push --threads=auto
-
-graph:
-	python2 ./bin/console generate:graph
-
-graph-full:
-	python2 ./bin/console generate:graph --all\
-		--filename docker-image-full-layout.gv
-
-documentation:
-	docker run -t -i --rm -p 8000 \
-		-v "$$(pwd)/documentation/docs/:/opt/docs" \
-		-e "VIRTUAL_HOST=documentation.docker" \
-		-e "VIRTUAL_PORT=8000" \
-		webdevops/sphinx sphinx-autobuild \
-		--poll -H 0.0.0.0 /opt/docs html

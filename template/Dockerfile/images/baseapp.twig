@@ -1,0 +1,47 @@
+{% macro alpine(role='') -%}
+    && apk-install shadow \
+    && apk-install \
+        # Install common tools
+        zip \
+        unzip \
+        bzip2 \
+        drill \
+        ldns \
+        openssh-client \
+        rsync \
+        patch \
+        git
+{%- endmacro %}
+
+{% macro debian(role='') -%}
+    # Install services
+    && apt-install \
+        # Install common tools
+        zip \
+        unzip \
+        bzip2 \
+        moreutils \
+        dnsutils \
+        openssh-client \
+        rsync \
+        git \
+        patch \
+    && /usr/local/bin/generate-locales
+{%- endmacro %}
+
+{% macro ubuntu(role='') -%}
+    # Install services
+    && apt-install \
+        # Install common tools
+        zip \
+        unzip \
+        bzip2 \
+        moreutils \
+        dnsutils \
+        openssh-client \
+        rsync \
+        git \
+        patch \
+    && mkdir -p /var/lib/syslog-ng/ \
+    && /usr/local/bin/generate-locales
+{%- endmacro %}

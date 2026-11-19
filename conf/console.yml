@@ -1,30 +1,12 @@
 ---
-
-dockerPath: 'docker'
-templatePath: 'template'
-provisionPath: 'provisioning'
-imagePath: 'documentation/docs/resources/images/'
-baselayoutPath: 'baselayout'
-testinfraPath: 'tests/testinfra'
-serverspecPath: 'tests/serverspec'
-testDockerfilePath: 'tests/dockerfile'
-blacklistFile: 'BLACKLIST'
+# Settings of ci/console generate:github-ci and generate:readme-banner
 
 docker:
-  imagePrefix: 'webdevops'
+  # This tag is also published as latest
   autoLatestTag: 'ubuntu-22.04'
-  pathRegex: '/(?P<image>[^/]+)/(?P<tag>[^/]+)/Dockerfile$'
-  autoPull: True
-  autoPullBlacklist: '^webdevops/.*'
 
-
-graph:
-    label: 'Webdevops Images\n%s'
-
+# Settings of the image tests (ci/console test:image), per image tag
 dockerTest:
-  serverspec:
-    specPath: 'spec/docker/%s_spec.rb'
-
   configuration:
     imageConfigurationRegex: ':(?P<OS_FAMILY>alpine|debian|ubuntu|centos)-?(?P<OS_VERSION>[^-]+)?'
     default:
@@ -34,14 +16,6 @@ dockerTest:
       'php[^:]*:[0-9].[0-9]-alpine$':
         OS_FAMILY: 'alpine'
         OS_VERSION: '3'
-        PHP_OFFICIAL: '1'
-      'php[^:]*:5.6$':
-        OS_FAMILY: 'debian'
-        OS_VERSION: '9'
-        PHP_OFFICIAL: '1'
-      'php[^:]*:7.0$':
-        OS_FAMILY: 'debian'
-        OS_VERSION: '9'
         PHP_OFFICIAL: '1'
       'php[^:]*:8.(0|1|2|3|4|5)':
         OS_FAMILY: 'debian'

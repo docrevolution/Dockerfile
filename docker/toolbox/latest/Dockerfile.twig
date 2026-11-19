@@ -1,0 +1,31 @@
+{% import 'docker.twig' as docker %}
+{% import 'tools.twig' as tools %}
+{{ docker.fromOfficial("alpine") }}
+ARG TARGETARCH
+
+RUN apk add --no-cache \
+        ca-certificates \
+        openssl \
+        curl \
+        bash \
+        sed \
+        wget \
+        zip \
+        unzip \
+        bzip2 \
+        p7zip \
+        drill \
+        ldns \
+        openssh-client \
+        rsync \
+        git \
+        gnupg \
+    && mkdir -p \
+            /baselayout/sbin \
+            /baselayout/usr/local/bin \
+        {{ tools.goreplace(path="/baselayout/usr/local/bin") }} \
+        && ln -s /baselayout/usr/local/bin/go-replace /usr/local/bin/ \
+        {{ tools.gosu(path="/baselayout/sbin") }}
+
+# Baselayout scripts (apt-install, apk-install, docker-run-bootstrap, ...), from provisioning/baselayout
+COPY conf/ /baselayout/

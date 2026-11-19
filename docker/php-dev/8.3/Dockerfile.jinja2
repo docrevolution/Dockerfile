@@ -1,9 +1,0 @@
-{{ docker.from("php", "8.3") }}
-
-{{ docker.copy('conf/', '/opt/docker/') }}
-
-RUN --mount=type=bind,from=ghcr.io/php/pie:bin,source=/pie,target=/usr/local/bin/pie \
-    set -x \
-    {{ php.officialDevelopment(version="8.3") }} \
-    {{ provision.runBootstrap() }} \
-    {{ docker.cleanup() }}

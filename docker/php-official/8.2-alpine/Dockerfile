@@ -22,7 +22,7 @@ ENV APPLICATION_USER=application \
     APPLICATION_PATH=/app \
     APPLICATION_UID=1000 \
     APPLICATION_GID=1000
-ENV PHP_SENDMAIL_PATH="/usr/sbin/sendmail -t -i" 
+ENV PHP_SENDMAIL_PATH="/usr/sbin/sendmail -t -i"
 ENV LD_PRELOAD="/usr/lib/preloadable_libiconv.so"
 ENV COMPOSER_VERSION="2"
 
@@ -36,8 +36,6 @@ COPY conf/ /opt/docker/
 
 RUN set -x \
     # Init bootstrap
-    # Add community
-    && echo https://dl-4.alpinelinux.org/alpine/v3.20/community/ >> /etc/apk/repositories \
     # System update
     && /usr/local/bin/apk-upgrade \
     # Install base stuff
@@ -61,6 +59,7 @@ RUN set -x \
         vim \
         sed \
         tzdata \
+        tzdata-utils \
         busybox-suid \
     && chmod +s /sbin/gosu \
     && docker-run-bootstrap
@@ -81,9 +80,11 @@ RUN set -x \
     && docker-run-bootstrap
 
 RUN --mount=type=bind,from=ghcr.io/php/pie:bin,source=/pie,target=/usr/local/bin/pie \
+    --mount=type=secret,id=COMPOSER_AUTH,env=COMPOSER_AUTH \
     set -x \
     # Install php environment
     && apk-install \
+        file \
         imagemagick \
         graphicsmagick \
         ghostscript \
@@ -149,6 +150,8 @@ RUN --mount=type=bind,from=ghcr.io/php/pie:bin,source=/pie,target=/usr/local/bin
     && PKG_CONFIG_PATH=/usr/local docker-php-ext-configure intl \
     && docker-php-ext-configure gd --with-avif --with-jpeg --with-freetype --with-webp \
     && git clone --branch master --depth 1 https://github.com/Imagick/imagick.git /usr/src/php/ext/imagick \
+    # imagick leaves its version to the packaging of PECL; take it from package.xml, so that phpversion('imagick') reports it
+    && sed -i "s/@PACKAGE_VERSION@/$(sed -n 's:.*<release>\([0-9][0-9.]*\)</release>.*:\1:p' /usr/src/php/ext/imagick/package.xml | head -n 1)/" /usr/src/php/ext/imagick/php_imagick.h \
     && git clone --branch latest --depth 1 https://github.com/php-amqp/php-amqp.git /usr/src/php/ext/amqp \
     && cd /usr/src/php/ext/amqp && git submodule update --init \
     && docker-php-ext-configure ldap \

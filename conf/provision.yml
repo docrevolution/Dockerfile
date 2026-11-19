@@ -3,37 +3,17 @@ provision:
   base:
     configuration:
       base/general: '*'
-      base/centos: centos-*
-      base/alpine: alpine
   base-app:
     configuration:
       base-app/general: '*'
-  apache:
-    configuration:
-      apache/general    : '*'
-      apache/centos     : centos-*
-      apache/alpine     : alpine
-  nginx:
-    configuration:
-      nginx/general     : '*'
-      nginx/centos      : centos-*
-      nginx/alpine      : alpine
-  php:
-    configuration:
-      php/general       : '(debian|ubuntu|centos|alpine)'
-      php/ubuntu-12.04  : ubuntu-12.04
-      php/alpine        : alpine
   php-apache:
     configuration:
       apache/general    : '*'
-      apache/centos     : centos-*
-      apache/alpine     : alpine
       php-apache/general: '*'
       php-apache/alpine : '*-alpine'
   php-nginx:
     configuration:
       nginx/general     : '*'
-      nginx/centos      : centos-*
       nginx/alpine      : '*-alpine'
       php-nginx/general : '*'
   php-dev:
@@ -45,11 +25,13 @@ provision:
       php-apache/general: '*'
       php-dev/general   : '*'
       apache-dev/general: '*'
+      development/general: '*'
   php-nginx-dev:
     configuration:
       php-nginx/general : '*'
       php-dev/general   : '*'
       nginx-dev/general : '*'
+      development/general: '*'
   php-official:
     configuration:
       base/general       : '*'
@@ -57,6 +39,6 @@ provision:
       php/general        : '*'
       php/official       : '*'
       php/official-alpine: '*-alpine'
-  vsftp:
+  toolbox:
     configuration:
-      vsftp/general     : '*'
+      baselayout/general: '*'

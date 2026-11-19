@@ -1,0 +1,10 @@
+includes:
+  - phpstan-baseline.neon
+  - vendor/andersundsehr/phpstan-git-files/extension.php
+
+parameters:
+  level: 8
+  reportUnmatchedIgnoredErrors: false
+  excludePaths:
+    # Pages that the image tests request in the containers; they check behaviour PHPStan cannot see, e.g. sessions
+    - image-tests/Fixtures

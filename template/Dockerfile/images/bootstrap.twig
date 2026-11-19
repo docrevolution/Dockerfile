@@ -1,0 +1,47 @@
+{% macro alpine() -%}
+    # Init bootstrap
+    # System update
+    && /usr/local/bin/apk-upgrade \
+    # Install base stuff
+    && apk-install \
+        bash \
+        ca-certificates \
+        openssl \
+    && update-ca-certificates \
+    && /usr/local/bin/generate-dockerimage-info \
+    ## Fix su execution (eg for tests)
+    && mkdir -p /etc/pam.d/ \
+    && echo 'auth sufficient pam_rootok.so' >> /etc/pam.d/su
+{%- endmacro %}
+
+{% macro debian() -%}
+    # Init bootstrap
+    && apt-update \
+    && /usr/local/bin/generate-dockerimage-info \
+    # Enable contrib and non-free
+    && sed -ri 's/^(Components: main)$/\1 contrib non-free/' /etc/apt/sources.list.d/debian.sources \
+    && grep -q '^Components: main contrib non-free$' /etc/apt/sources.list.d/debian.sources \
+    && apt-update \
+    # System update
+    && /usr/local/bin/apt-upgrade \
+    # Base stuff
+    && apt-install \
+        apt-transport-https \
+        ca-certificates \
+        locales \
+        gnupg
+{%- endmacro %}
+
+{% macro ubuntu() -%}
+    # Init bootstrap
+    && apt-update \
+    # System update
+    && /usr/local/bin/apt-upgrade \
+    # Install base stuff
+    && apt-install \
+        ca-certificates \
+        apt-transport-https \
+    && apt-add-repository multiverse \
+    && apt-update \
+    && /usr/local/bin/generate-dockerimage-info
+{%- endmacro %}
